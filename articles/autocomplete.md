@@ -2,7 +2,7 @@
 
 ## ゴール
 
-Google 検索等では、1文字打つごとに検索候補が表示・更新されます。
+Google 検索等では、1 文字打つごとに検索候補が表示・更新されます。
 
 ![Google 検索画面](./imgs/google-autocomplete.png)
 
@@ -100,7 +100,7 @@ Index の定義は長いので省略しますが、公式ブログのものか�
   - ユーザー単位でどれくらい利用されてるか・利用状況の時系列変化をみるため
 - matched_count
   - 『本体となる検索システム』の index 検索において hit した件数
-  - hit しない検索（結果として hit が0件のもの）を候補に表示させないため
+  - hit しない検索（結果として hit が 0 件のもの）を候補に表示させないため
 - searched_at
   - 『本体となる検索システム』が検索された日時
 
@@ -192,7 +192,7 @@ POST _scripts/history-search-template
 ...
 ```
 
-### ユースケース: 検索ワード別検索結果集計
+### ユースケース: 検索ワード別の結果集計
 
 どのワードが最も多く検索されてるかを集計します。
 
@@ -322,7 +322,7 @@ $ curl "http://localhost:8085/auto-complete?query=退" | jq
 
 詳細は [GitHub](https://github.com/kokoichi206-sandbox/search-suggestions/blob/main/front/src/app/page.tsx) を見ていただきたいのですが、以下のような作戦を取りました。
 
-- ユーザーからの入力が1つあるたびに API を叩く
+- ユーザーからの入力が 1 つあるたびに API を叩く
   - レスポンス速度とサーバーの負荷次第では debounced なども検討してみるといいかも
 - options (Autocomplete の候補一覧) に結果を詰めていく
 
