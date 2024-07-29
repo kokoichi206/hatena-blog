@@ -1,0 +1,50 @@
+# M1 mac の VSCode のターミナルで go: no such tool "compile"
+
+VSCode の terminal で `go install` しようとしたところ、`no such tool` と言われました。
+
+``` sh
+$ go install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
+
+go: no such tool "compile"
+go: no such tool "compile"
+go: no such tool "compile"
+go: no such tool "compile"
+fatal error: internal error: exit hook invoked exit
+```
+
+
+tools の場所を確認してみます。
+M1 なのに amd が入ってるっぽくみえます。
+
+``` sh
+$ ls /usr/local/go/pkg/tool/
+darwin_amd64
+```
+
+GOTOOLDIR を出力してみると、iTerm2 と VSCode で異なる結果が得られました。
+
+**iTerm2**
+
+``` sh
+$ go env GOTOOLDIR
+/usr/local/go/pkg/tool/darwin_amd64
+```
+
+**VSCode**
+
+``` sh
+$ go env GOTOOLDIR
+/usr/local/go/pkg/tool/darwin_arm64
+```
+
+
+どうやら『VSCode は Rosetta なし』『iTerm2 は Rosetta あり』で起動してるのが関係してるみたいです。
+
+![](img/rosetta.png)
+
+ということで iTerm で `go install` を試したところうまくいきました。
+
+
+また、1回 iTerm での実行を終えた後は VSCode 側で見た時も go env の値が変わってそうでした。
+
+Rosetta で扱ってるのもノリでやっちゃってるので、そこの理解を１回ちゃんとしたいです。。。
