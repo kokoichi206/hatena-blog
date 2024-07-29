@@ -1,18 +1,40 @@
 # OpenSearch で実現する検索サジェスト機能
 
-## ゴール
 
 Google 検索等では、1 文字打つごとに検索候補が表示・更新されます。
 
-![Google 検索画面](./imgs/google-autocomplete.png)
+![Google 検索画面](./img/google-autocomplete.png)
 
 今回はこれと似たような機能を Next.js (MUI) と OpenSearch, Go を用いて実装してみます。
 
-### やること
+**[目次]**
+
+```
+* [やること](#やること)
+* [やらないこと](#やらないこと)
+* [OpenSearch の設定](#opensearch-の設定)
+  * [Index/Search-template の作成](#index/search-template-の作成)
+  * [dummy data の投入](#dummy-data-の投入)
+  * [ユースケース: suggestion に利用](#ユースケース:-suggestion-に利用)
+  * [ユースケース: 検索ワード別の結果集計](#ユースケース:-検索ワード別の結果集計)
+  * [ユースケース: 人・期間（daily）別、検索結果。](#ユースケース:-人・期間（daily）別、検索結果。)
+  * [curl で叩く例](#curl-で叩く例)
+* [API の実装](#api-の実装)
+* [Front の実装](#front-の実装)
+* [おわりに](#おわりに)
+```
+
+## やること
 
 本体となる検索システムがあると想定し、そこの検索結果を別途 OpenSearch に保持することで『**検索ログの集計・よく検索されてるワードのサジェスト**』を実現します。
 
-### やらないこと
+![](./img/autocomplete-sequence.png)
+
+**目標成果物**
+
+![](./img/autocomplete.gif)
+
+## やらないこと
 
 OpenSearch, Next, Go の詳しい説明はしません。また、本体となる検索システム本体の構築も今回のスコープの対象外とします。
 
@@ -86,7 +108,7 @@ Username: admin
 Password: ad.PASS#1
 ```
 
-![OpenSearch ログイン画面](./imgs/os-login.png)
+![OpenSearch ログイン画面](./img/os-login.png)
 
 ### Index/Search-template の作成
 
@@ -127,7 +149,6 @@ POST _bulk
 ### ユースケース: suggestion に利用
 
 ここは[公式](https://www.elastic.co/jp/blog/implementing-japanese-autocomplete-suggestions-in-elasticsearch)と全く同じものを使いました。
-（長いので省いてもいいかも）
 
 ```
 GET searched-history/_search 
@@ -183,7 +204,7 @@ GET searched-history/_search
 }
 ```
 
-![『ユースケース: suggestion に利用』の検索結果](./imgs/search-suggest.png)
+![『ユースケース: suggestion に利用』の検索結果](./img/search-suggest.png)
 
 今回はこれを search-template として登録するために、以下を実行しておきます。
 
@@ -255,7 +276,7 @@ GET searched-history/_search
 }
 ```
 
-![『ユースケース: 人・期間（daily）別、検索結果』の検索結果](./imgs/search-per-user-per-day.png)
+![『ユースケース: 人・期間（daily）別、検索結果』の検索結果](./img/search-per-user-per-day.png)
 
 ### curl で叩く例
 
@@ -328,7 +349,7 @@ $ curl "http://localhost:8085/auto-complete?query=退" | jq
 
 裏側に本体の検索システムがある場合は、『選択時』or『Enter 押下時』などに検索を発火させると良い気がします。
 
-![実装された検索画面](./imgs/search-ui.png)
+![実装された検索画面](./img/search-ui.png)
 
 UI 部分のコードについては、以下に記載しておきます。
 
@@ -402,5 +423,5 @@ UI 部分のコードについては、以下に記載しておきます。
 
 ## おわりに
 
-今回は『検索ログの保存』と『それを用いた検索サジェスト機能』を実現してみました。
+今回は『検索ログの保存』と『それを用いた検索サジェスト機能』を実現してみました。  
 まともなデータ量がたまった時に、どれくらいパフォーマンスが出るか未知数なので、次回はそこも実験してみたいです。
