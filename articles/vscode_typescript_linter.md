@@ -1,10 +1,10 @@
 # VSCode で自分だけ typescript のエラーが異なる時に試したこと
 
-人によって VSCode 上で怒られる typescript の内容が違う現象が発生しました。
+VSCode 上で怒られる typescript の内容が、人によって異なるという現象が発生しました。
 
 node, yarn, 該当のライブラリのバージョン (node_module), typescript のバージョン等を調べても同じだったためパッと原因がわかりませんでした。
 
-**結論としては、typescript が workspace のものではなく VSCode に備え付けのものが使われていたた**ことでした。
+**結論としては、typescript が workspace のものではなく VSCode に備え付けのものが使われていた**ことでした。
 
 以下の手順で TypeScript を切り替えることで無事解決できました。
 
