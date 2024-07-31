@@ -17,7 +17,7 @@ jobs:
         env:
           HATENA_API_KEY: ${{ secrets.HATENA_API_KEY }}
         run: |
-          CHANGED_MD_FILE=$(git diff-tree --no-commit-id --name-only -r $(git rev-parse HEAD) | grep '\.md$' || true)
+          CHANGED_MD_FILE=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | grep '\.md$' || true)
           if [ -n "$CHANGED_MD_FILE" ]; then
             echo "Uploading ${CHANGED_MD_FILE} to Hatena Blog"
             bash scripts/upload.sh "${HATENA_API_KEY}" "${CHANGED_MD_FILE}"
