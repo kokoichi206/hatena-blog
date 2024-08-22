@@ -7,18 +7,22 @@ on:
       - 'articles/**'
 
 jobs:
-  lint:
+  draft-release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Upload article to Hatena Blog
         env:
           HATENA_API_KEY: ${{ secrets.HATENA_API_KEY }}
         run: |
-          CHANGED_MD_FILE=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | grep '\.md$' || true)
+          echo "Current SHA: ${{ github.workflow_sha }}"
+          CHANGED_MD_FILE=$(git diff-tree --no-commit-id --name-only -r ${{ github.workflow_sha }} | grep '\.md$' || true)
+          echo "CHANGED_MD_FILE: ${CHANGED_MD_FILE}"
           if [ -n "$CHANGED_MD_FILE" ]; then
-            echo "Uploading ${CHANGED_MD_FILE} to Hatena Blog"
+            echo "Uploading to Hatena Blog"
             bash scripts/upload.sh "${HATENA_API_KEY}" "${CHANGED_MD_FILE}"
           fi
