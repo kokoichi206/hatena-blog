@@ -3,7 +3,7 @@
 Google provider では [Version 5.0 から default_labels というフィールドが追加され](https://www.hashicorp.com/blog/terraform-google-provider-adds-updates-to-default-labels)、terraform で管理するリソース全体に統一的なラベルを付与できるようになりました。
 （[AWS では Google の2年半ほど前から同様の機能が使えるようです](https://www.hashicorp.com/blog/default-tags-in-the-terraform-aws-provider)）
 
-この `default_labels` ですが、`google_sql_database_instance` など**一部のリソースではラベルが付与されない**ため注意が必要だった話の共有です。
+この `default_labels` ですが、`google_sql_database_instance` など**一部のリソースではラベルが付与されない**という話をさせてもらいます。
 
 <!-- more -->
 
@@ -49,7 +49,7 @@ resource "google_sql_database_instance" "master" {
 ## 原因
 
 この内容は [hashicorp/terraform-provider-google の Issue](terrhttps://github.com/hashicorp/terraform-provider-google/issues/16375#issuecomment-2289955256) にも上がっており、どうやら**各リソースの top 階層に label がない場合は default_labels が適応されない**ようです。
-（この Issue が閉じられてる頃には、勝手にここも付与されるようになってるかもしれない。）
+（この Issue が閉じられる頃には、勝手にここも付与されるようになって欲しい。）
 
 今回の `google_sql_database_instance` の例では, [labels の定義が `settings > user_labels` にある](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/sql_database_instance#user_labels)ため、適応対象外となってしまったようです。
 
