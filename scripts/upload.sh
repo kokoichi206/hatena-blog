@@ -12,7 +12,7 @@ HATENA_ID="kokoichi206"
 BLOG_ID="koko206.hatenablog.com"
 
 AUTHOR="kokoichi206"
-UPDATED_DATE="$(date +"%Y-%m-%dT%H:%M:%S")"
+UPDATED_DATE="$(TZ=Asia/Tokyo date +"%Y-%m-%dT%H:%M:%S")"
 DRAFT="yes"
 PREVIEW="yes"
 
