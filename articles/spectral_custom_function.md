@@ -1,6 +1,6 @@
 # spectral で OpenAPI の required フィールドを検証するカスタム関数を作成する
 
-spectral は OpenAPI、AsyncAPI、JSON Schema などの API ドキュメントを検証するためのツールです。
+[spectral](https://github.com/stoplightio/spectral) は OpenAPI、AsyncAPI、JSON Schema などの API ドキュメントを検証するためのツールです。
 
 今回は spectral を使用して OpenAPI の required フィールドを検証するカスタム関数を作成する方法について解説します。
 
