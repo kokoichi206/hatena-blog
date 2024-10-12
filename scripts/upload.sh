@@ -37,7 +37,7 @@ fi
 # Content
 TITLE=$(awk 'NR==1 {if ($0 ~ /^# /) {sub(/^# /, ""); print} else {print ""}}' "$CONTENT_FILE")
 # convert the image URL to the one that can be served from GitHub.
-CONTENT=$(awk 'NR>2' "$CONTENT_FILE" | sed -E 's@./img/(.*)\)@https://github.com/kokoichi206/hatena-blog/blob/main/articles/img/\1?raw=true\)@')
+CONTENT=$(awk 'NR>2' "$CONTENT_FILE" | sed -E 's@./img/(.*)\)@https://github.com/kokoichi206/hatena-blog/blob/main/articles/img/\1?raw=true\)@' | sed -E 's@<!-- more -->@\&lt;!-- more --\&gt;@')
 
 if [ -z "$TITLE" ]; then
     echo "Title is empty."
@@ -60,9 +60,7 @@ curl -X POST "https://blog.hatena.ne.jp/${HATENA_ID}/${BLOG_ID}/atom/entry" \
        xmlns:app=\"http://www.w3.org/2007/app\">
   <title>${TITLE}</title>
   <author><name>${AUTHOR}</name></author>
-  <content type=\"text/plain\">
-    ${CONTENT}
-  </content>
+  <content type=\"text/plain\">${CONTENT}</content>
   <updated>${UPDATED_DATE}</updated>
   <app:control>
     <app:draft>${DRAFT}</app:draft>
