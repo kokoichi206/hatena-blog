@@ -186,7 +186,7 @@ export default (input, opts, context) => {
 
 ### .spectral.yaml
 
-`.spectral.yaml` は spectral に関する設定を管理するためのファイルで、今回は `functions`, `functionsDir`, `rules` の3つを変更しました。
+`.spectral.yaml` は spectral に関する設定を管理するためのファイルで、今回は `functions`, `functionsDir`, `rules` の 3 つを変更しました。
 
 ### `validateRequiredProperties.js` の実装
 
