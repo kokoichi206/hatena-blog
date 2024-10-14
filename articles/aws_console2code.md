@@ -2,7 +2,7 @@
 
 [AWS Console-to-Code という機能が 2024/10/10 に GA されました](https://aws.amazon.com/jp/blogs/aws/convert-aws-console-actions-to-reusable-code-with-aws-console-to-code-now-generally-available/)
 
-AWS コンソールでの操作をコードに変換し、再利用可能な形でエクスポートすることができるという、非常に便利そうな機能です。  
+AWS コンソールでの操作をコードに変換し、再利用可能な形でエクスポートできるという、非常に便利そうな機能です。  
 しかし、実際に試してみた結論としては、Amazon Q による推論が思ったほど賢くなく、CLI や CDK に変換されたコードももう少しかなと感じました。
 
 ## AWS Console-to-Code のフロー
@@ -29,7 +29,7 @@ AWS コンソールでの操作をコードに変換し、再利用可能な形�
 
 ### コード生成
 
-一通り記録が終わったら、コードを取得することができます。
+一通り記録が終わったら、コードを取得できます。
 
 ![](./img/aws_c2c_03.png)
 
@@ -39,7 +39,7 @@ AWS コンソールでの操作をコードに変換し、再利用可能な形�
 
 ### コード確認
 
-生成された CLI の1つ目 RDS の作成を実行してみます。
+生成された CLI の 1 つ目（RDS の作成）を実行してみます。
 
 ``` sh
 $ aws rds create-db-instance --engine "postgres" --engine-version "16.3" --engine-lifecycle-support "open-source-rds-extended-support-disabled" \
