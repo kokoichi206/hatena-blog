@@ -7,6 +7,8 @@ Go では特に大文字小文字で可視性が決まるため、package を跨
 
 https://koko206.hatenablog.com/entry/2024/02/05/021412
 
+![](./img/refactor_upper_3.gif)
+
 <!-- more -->
 
 ## 選択されてる箇所を大文字に変換する
