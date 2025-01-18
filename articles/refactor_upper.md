@@ -23,7 +23,7 @@ https://koko206.hatenablog.com/entry/2024/02/05/021412
 
 ![](./img/refactor_upper_2.png)
 
-他にもキャメルケースに変換する `Transform to Camel Case`, スネークケースに変換する `Transform to Snake Case` などもあるのでぜひ覚えておきましょう。
+キャメルケースに変換する `Transform to Camel Case`, スネークケースに変換する `Transform to Snake Case` などもあるのでぜひ覚えておきましょう。
 
 **3 マルチカーソルと合わせて爆速で置換する**
 
