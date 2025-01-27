@@ -183,3 +183,5 @@ class CompanyInfoTypedDict(TypedDict):
 結局 typing モジュールの中で自分が興味を持ったものの紹介になってしまいました。
 
 [typing](https://docs.python.org/ja/3.13/library/typing.html) はマイバージョン進化してそうなので、一通り眺めてみるのも良さそうです！
+
+他にもおすすめの機能があれば教えてください！
