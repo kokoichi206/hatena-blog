@@ -1,7 +1,7 @@
 # 久々に Python を触ったら型周りが進化してた
 
 すごい久々にちゃんと Python の知識を update しようとしてるのですが、見える世界が全く変わっていたのでその感動をメモしておきます。  
-（当時から自分の知識が増えたことも大きいと思います。）
+（当時から自分の知識が増えたことも大きいです。）
 
 以下 mypy などの型チェッカーと使うことを前提にしています。
 
@@ -12,20 +12,21 @@ Python 3.13.1
 
 **[目次]**
 
-* [[typing.NamedTuple](https://docs.python.org/ja/3.13/library/typing.html](#[typing.namedtuple](https://docs.python.org/ja/3.13/library/typing.html)
-  * [[typing.TypedDict](https://docs.python.org/ja/3.13/library/typing.html](#[typing.typeddict](https://docs.python.org/ja/3.13/library/typing.html)
-* [Literal の Union](#literal-の-union)
-* [[typing.Protocol](https://docs.python.org/ja/3.13/library/typing.html](#[typing.protocol](https://docs.python.org/ja/3.13/library/typing.html)
-* [[typing.ReadOnly](https://docs.python.org/ja/3.13/library/typing.html](#[typing.readonly](https://docs.python.org/ja/3.13/library/typing.html)
-* [おわりに](#おわりに)
+* typing.NamedTuple
+  * typing.TypedDict との違い
+* Literal の Union
+* typing.Protocol
+* typing.ReadOnly
+* おわりに
 
 <!-- more -->
 
-## [typing.NamedTuple](https://docs.python.org/ja/3.13/library/typing.html#typing.NamedTuple)
+## typing.NamedTuple
+<!-- ## [typing.NamedTuple](https://docs.python.org/ja/3.13/library/typing.html#typing.NamedTuple) -->
 
 typing.NamedTuple は Python v3.6 で追加されており、名前付きのタプルを生成できます。
 
-型ヒントが使えて VSCode 等で補完が効くところが collections.namedtuple との違いです。
+型ヒントにより VSCode 等で補完が効くところが collections.namedtuple との違いです。
 
 ``` python
 from typing import NamedTuple
@@ -108,7 +109,7 @@ $ uv run mypy typecheck.py
 typecheck.py:8: error: Incompatible types in assignment (expression has type "Literal['runningw']", variable has type "Literal['running', 'stopped', 'pending']")  [assignment]
 ```
 
-また Union と明示したり TypeScript のように `|` でも記述することも可能です。
+また Union と明示したり TypeScript のように `|` でも記述可能です。
 
 ``` python
 # 同じ意味。
@@ -166,7 +167,7 @@ proto.py:22: error: Argument 1 to "speak" has incompatible type "Foo"; expected 
 
 読み取り専用の型ヒントを提供するもので、Python **3.13** で追加されてます。
 
-先述の TypedDict と組み合わせることで、一部のフィールドのみ可変にすることが可能です。
+先述の TypedDict と組み合わせることで、一部のフィールドのみ可変にできます。
 
 ``` python
 from typing import ReadOnly, TypedDict
@@ -181,4 +182,4 @@ class CompanyInfoTypedDict(TypedDict):
 
 結局 typing モジュールの中で自分が興味を持ったものの紹介になってしまいました。
 
-[typing](https://docs.python.org/ja/3.13/library/typing.html) はマイバージョン進化してそうなので、一通り眺めてみるのも良いかもしれません。
+[typing](https://docs.python.org/ja/3.13/library/typing.html) はマイバージョン進化してそうなので、一通り眺めてみるのも良さそうです！
