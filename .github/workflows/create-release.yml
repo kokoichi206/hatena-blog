@@ -5,6 +5,12 @@ on:
       - main
     paths:
       - 'articles/**'
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'Path to the markdown file to upload (e.g. articles/2025-base.md)'
+        required: true
+        type: string
 
 jobs:
   draft-release:
@@ -18,9 +24,14 @@ jobs:
       - name: Upload article to Hatena Blog
         env:
           HATENA_API_KEY: ${{ secrets.HATENA_API_KEY }}
+          INPUT_FILE: ${{ inputs.file }}
         run: |
-          echo "Current SHA: ${{ github.workflow_sha }}"
-          CHANGED_MD_FILE=$(git diff-tree --no-commit-id --name-only -r ${{ github.workflow_sha }} | grep '\.md$' || true)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            CHANGED_MD_FILE="$INPUT_FILE"
+          else
+            echo "Current SHA: ${{ github.workflow_sha }}"
+            CHANGED_MD_FILE=$(git diff-tree --no-commit-id --name-only -r ${{ github.workflow_sha }} | grep '\.md$' || true)
+          fi
           echo "CHANGED_MD_FILE: ${CHANGED_MD_FILE}"
           if [ -n "$CHANGED_MD_FILE" ]; then
             echo "Uploading to Hatena Blog"
