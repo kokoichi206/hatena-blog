@@ -25,11 +25,17 @@ fi
 API_TOKEN="$1"
 CONTENT_FILE="$2"
 
-# check if the file exists.
 if [ ! -f "$CONTENT_FILE" ]; then
     echo "File not found: $CONTENT_FILE"
     exit 1
 fi
+
+xml_escape() {
+    sed \
+        -e 's/&/\&amp;/g' \
+        -e 's/</\&lt;/g' \
+        -e 's/>/\&gt;/g'
+}
 
 # Assuming the following format.
 # # Title
@@ -37,7 +43,7 @@ fi
 # Content
 TITLE=$(awk 'NR==1 {if ($0 ~ /^# /) {sub(/^# /, ""); print} else {print ""}}' "$CONTENT_FILE")
 # convert the image URL to the one that can be served from GitHub.
-CONTENT=$(awk 'NR>2' "$CONTENT_FILE" | sed -E 's@./img/(.*)\)@https://github.com/kokoichi206/hatena-blog/blob/main/articles/img/\1?raw=true\)@' | sed -E 's@<!-- more -->@\&lt;!-- more --\&gt;@')
+CONTENT=$(awk 'NR>2' "$CONTENT_FILE" | sed -E 's@./img/([^)]+)\)@https://github.com/kokoichi206/hatena-blog/blob/main/articles/img/\1?raw=true)@')
 
 if [ -z "$TITLE" ]; then
     echo "Title is empty."
@@ -51,8 +57,14 @@ We assume that the blog file follows the format below:
     exit 1
 fi
 
+TITLE=$(printf '%s' "$TITLE" | xml_escape)
+CONTENT=$(printf '%s' "$CONTENT" | xml_escape)
+
+RESPONSE_FILE=$(mktemp)
+trap 'rm -f "$RESPONSE_FILE"' EXIT
+
 # see: https://developer.hatena.ne.jp/ja/documents/blog/apis/atom/#%E3%83%96%E3%83%AD%E3%82%B0%E3%82%A8%E3%83%B3%E3%83%88%E3%83%AA%E3%81%AE%E6%8A%95%E7%A8%BF
-curl -X POST "https://blog.hatena.ne.jp/${HATENA_ID}/${BLOG_ID}/atom/entry" \
+HTTP_STATUS=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST "https://blog.hatena.ne.jp/${HATENA_ID}/${BLOG_ID}/atom/entry" \
     -u "${HATENA_ID}:${API_TOKEN}" \
     -H "Content-Type: application/atom+xml" \
     -d "<?xml version=\"1.0\" encoding=\"utf-8\"?>
@@ -66,4 +78,12 @@ curl -X POST "https://blog.hatena.ne.jp/${HATENA_ID}/${BLOG_ID}/atom/entry" \
     <app:draft>${DRAFT}</app:draft>
     <app:preview>${PREVIEW}</app:preview>
   </app:control>
-</entry>"
+</entry>")
+
+cat "$RESPONSE_FILE"
+printf '\n'
+
+if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+    echo "Hatena Blog API failed with status: ${HTTP_STATUS}" >&2
+    exit 1
+fi
