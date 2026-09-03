@@ -8,7 +8,6 @@
 * [現在の環境](#現在の環境)
 * [改善ポイント](#改善ポイント)
   * [path-scoped rules が Write の新規作成で効かない穴を hook で塞ぐ](#path-scoped-rules-が-write-の新規作成で効かない穴を-hook-で塞ぐ)
-  * [settings.json の hook 配線を lint で守る](#settingsjson-の-hook-配線を-lint-で守る)
   * [sandbox の excludedCommands を引数付きにも効かせる](#sandbox-の-excludedcommands-を引数付きにも効かせる)
 
 ## 現在の環境
@@ -31,11 +30,12 @@ Claude Code には path-scoped rules という仕組みがあります。`.claud
 
 「GitHub Actions の workflow を書く時はこう」といった限定的なルールを、常時 CLAUDE.md へ置かずに済む機能です。
 
-ただしこのルールは **Read した時** に注入されます。Write で新規ファイルを作る場合は事前の Read が無いため、ルールが注入されません。
+ただしこのルールは **Read した時** に注入されます。  
+Write で新規ファイルを作る場合は事前の Read が無いため、ルールが注入されません。
 
 新規作成こそ規約を守ってほしい場面なのに、そこだけ抜けている状態でした。
 
-Edit / MultiEdit は事前 Read が必須なので標準機構でカバーされています。穴は Write による新規作成だけです。
+Edit / MultiEdit は事前 Read が必須で標準機構でカバーされているので、穴は Write による新規作成だけです。
 
 関連 issue は 2 つ見つけましたが、どちらも NOT_PLANNED でクローズされていました。
 
@@ -56,7 +56,8 @@ Edit / MultiEdit は事前 Read が必須なので標準機構でカバーされ
 }
 ```
 
-hook 側は、対象ファイルが **まだ存在しない時だけ** 注入します。既存ファイルへの Write は Read 済みのはずで標準機構がカバーしているので、二重注入を避けるためです。
+hook 側は、対象ファイルが **まだ存在しない時だけ** 注入します。  
+既存ファイルへの Write は Read 済みのはずで標準機構がカバーしているので、二重注入を避けるためです。
 
 設計で意識したのは、標準機構を置き換えないことでした。
 
@@ -70,62 +71,6 @@ hook 側は、対象ファイルが **まだ存在しない時だけ** 注入し
 Edit や Read まで hook 対象を広げれば前者は減りますが、二重注入が増えるだけで割に合わないと判断しています。
 
 `paths` の glob は挙動が直感と違うことがあるので、テストで固定しました。`*` は 1 セグメントのみ（`*/go.mod` は `a/go.mod` にマッチするが `a/b/go.mod` にはしない）、`**` は任意階層、という違いです。
-
-### settings.json の hook 配線を lint で守る
-
-[対応コミット](https://github.com/kokoichi206/dotfiles/commit/83226bc0a73238292d365449332f0cbbf805ccfd)
-
-**元々の課題**
-
-`~/.claude/settings.json` は Claude Code 本体からも書き換わるので、dotfiles リポジトリ側と双方向に同期する運用をしています。
-
-live 側の変更を取り込む `make claude-pull` は、live の内容で repo を丸ごと上書きします。
-
-ここに罠がありました。repo 側で hook を書いたまま live へ反映し忘れている状態で `claude-pull` すると、**repo からもその配線が消えます**。
-
-しかも消えるのは JSON の一部です。`git diff` を流し読みすると見落とします。
-
-実際、一度 hook が黙って消えており、動いていないとしばらく気付けませんでした。
-
-**対応内容**
-
-hook の配線を検査するシェルスクリプトを書き、`claude-pull` / `claude-apply` の両方に組み込みました。
-
-検査は 2 方向です。
-
-1. `dot_claude/hooks/` にある hook の実体が、すべて settings.json から参照されているか
-2. settings.json が参照している hook が、repo に実在するか
-
-```sh
-# 1. hooks 実体がすべて settings.json から参照されていること
-for path in "$HOOKS_DIR"/*.sh "$HOOKS_DIR"/*.py; do
-  [ -e "$path" ] || continue
-  f="$(basename "$path")"
-  case " $UNWIRED " in *" $f "*) continue ;; esac
-  case "$f" in test-*) continue ;; esac
-  if ! grep -q "hooks/$f" "$SETTINGS"; then
-    echo "ERROR: $HOOKS_DIR/$f is not wired in $SETTINGS" >&2
-    fail=1
-  fi
-done
-```
-
-意図的に配線していない hook は `UNWIRED` に列挙してあります。「今は使っていないが消したくない」ものを、検査を黙らせるためだけに消さなくて済みます。
-
-大事なのは、これを `claude-pull` の中に入れた点です。
-
-```makefile
-claude-pull:	## ~/.claude/settings.json の変更を repo に取り込む (要 git diff レビュー)
-	jq -S . "$(LIVE_CLAUDE_SETTINGS)" | ./claude-normalize-home.sh | jq -S . > "$(DOT_CLAUDE_SETTINGS)"
-	@./claude-lint-settings.sh || { echo "hook wiring was dropped by pull. restore it in $(DOT_CLAUDE_SETTINGS) before committing."; exit 1; }
-```
-
-配線が落ちうる操作そのものに検査を貼っているので、`make claude-lint` を別途思い出す必要がありません。落ちた時のメッセージに復旧手順も書いてあります。
-
-```sh
-$ make claude-lint
-OK: hook wiring is consistent
-```
 
 ### sandbox の excludedCommands を引数付きにも効かせる
 
@@ -159,9 +104,6 @@ Claude Code の Bash sandbox には、sandbox の外で実行するコマンド�
 ## おわりに
 
 - 文章で書いたルールは、守られたかどうかが後からしか分からない。hook なら実行前に、lint なら commit 前に止まる
-- 検査は「壊れうる操作そのもの」に貼る。`claude-pull` に lint を組み込んだのは、思い出さなくても走らせるため
 - 本家の仕様が変われば消える回避策は、外すのが簡単な形にしておく
 
 7〜8 月は、設定ファイルに書いただけでは守られないものを、機械的に検査できる形へ移す作業が中心でした。
-
-特に settings.json の配線のように「壊れても静かなもの」は、検査を足しておく価値が大きいと感じました。壊れたことに気付けないものほど、機械に見張らせる意味があります。
