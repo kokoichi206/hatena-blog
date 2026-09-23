@@ -1,8 +1,6 @@
 # Go 1.23 以前での golangci-lint のバージョン管理方法
 
-ローカルの `make lint` と GitHub Actions で、golangci-lint の版が違っていました。Makefile ではインストールが `v1.59.1`、実行が `@latest`、Actions では `v1.60.3` を指定していました。
-
-Go 1.23 では `tool` ディレクティブが無いので、`tools.go` の空インポートで `go.mod` に版を載せました。ローカルは版を付けない `go run` です。CI は `install-mode: binary` で、`go list -m` が返す同じ版のリリースを入れています。Go 1.24 からは `tool` ディレクティブがあり、`tools.go` は要りません。
+ローカルと CI で、golangci-lint の版が違っていました。Makefile は `v1.59.1` と `@latest`、GitHub Actions は `v1.60.3` です。
 
 ## 目次
 
