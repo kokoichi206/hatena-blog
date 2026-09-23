@@ -32,12 +32,15 @@ action の `@v6` は浮動タグです。ソースを見たタグは、本文の
 
 ## tools.go で go.mod に載せる
 
-[Go の依存関係のドキュメント](https://go.dev/doc/modules/managing-dependencies#tools)は、1.24 より前のやり方として、ビルドタグで通常のビルドから外したファイルに空インポートを書く、と説明しています。2024-11-22 に、それを足しました。
+2024-11-22 に、コマンドラインツールの版を `go.mod` で持つファイルを足しました。ビルドタグで通常のビルドから外し、空インポートするやり方は [christina04.hatenablog.com の記事](https://christina04.hatenablog.com/entry/go-cmd-tools-versioning)を参照しています。
 
 ```go
 //go:build tools
 
 package tools
+
+// コマンドラインツールをgo.modでバージョン管理するためのファイル
+// ref: https://christina04.hatenablog.com/entry/go-cmd-tools-versioning
 
 import (
 	_ "github.com/air-verse/air"
