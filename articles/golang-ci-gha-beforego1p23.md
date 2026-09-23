@@ -2,8 +2,6 @@
 
 golangci-lint の版がローカルと CI で揃っていませんでした。Makefile のインストール指定は `v1.59.1`、同じ Makefile の実行は `@latest`、GitHub Actions は `v1.60.3` です。見る場所で linter が違います。
 
-## この記事で伝えたいこと
-
 版の置き場所は、`go.mod` の require です。Go 1.23 には `tool` ディレクティブが無いので、`//go:build tools` の空インポートでそこに載せます。ローカルの `go run` は版を付けず、メインモジュールが選んでいる版を使います。CI は `install-mode: binary` にして、`go list -m` で取った同じ版のリリースバイナリを入れます。
 
 Go 1.24 以降は `tool` ディレクティブで、この空インポート用のファイルは要らなくなります。`uses:` が指す action の ref と、実際に走る golangci-lint 本体の版は別です。ここでは本体の話だけです。
@@ -11,7 +9,6 @@ Go 1.24 以降は `tool` ディレクティブで、この空インポート用�
 ## 目次
 
 - [環境](#環境)
-- [ローカルと CI で版が揃っていない](#ローカルと-ci-で版が揃っていない)
 - [tools.go で go.mod に載せる](#toolsgo-で-gomod-に載せる)
 - [版を付けない go run はメインモジュールを使う](#版を付けない-go-run-はメインモジュールを使う)
 - [CI は binary で同じ版のリリースを入れる](#ci-は-binary-で同じ版のリリースを入れる)
@@ -32,31 +29,6 @@ Go 1.24 以降は `tool` ディレクティブで、この空インポート用�
 | actions/setup-go | v5 |
 
 action の `@v6` は浮動タグです。ソースを見たタグは、本文のリンク先に書いています。
-
-## ローカルと CI で版が揃っていない
-
-揃っていなかったのは、次の 3 箇所です。
-
-Makefile のインストール用リストは `v1.59.1` です。実行用の define は `@latest` です。workflow はまた別で、`v1.60.3` を直書きしていました。
-
-```makefile
-EXTERNAL_TOOLS := \
-	github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.1 \
-	github.com/air-verse/air@latest
-
-define golangci
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-endef
-```
-
-```yaml
-- uses: golangci/golangci-lint-action@v6
-  with:
-    working-directory: ./backend
-    version: v1.60.3
-```
-
-`@latest` は、実行のたびに変わり得ます。直書きの版は、直したファイルしか更新しません。手元の `make lint` と CI が別の golangci-lint を実行するので、片方だけで失敗することがあります。
 
 ## tools.go で go.mod に載せる
 
