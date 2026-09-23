@@ -1,8 +1,8 @@
-# Go 1.23 以前での Golangci-lint のバージョン管理方法
+# Go 1.23 以前での golangci-lint のバージョン管理方法
 
-業務の Go バックエンドで、ローカルと GitHub Actions の golangci-lint の版が別々に書いてありました。Makefile は `v1.59.1` と `@latest`、workflow は `v1.60.3` です。同じリポジトリなのに、見る場所で linter が違います。
+業務の Go バックエンドでは、golangci-lint の版がローカルと CI で揃っていませんでした。Makefile のインストール指定は `v1.59.1`、同じ Makefile の実行は `@latest`、GitHub Actions は `v1.60.3` です。見る場所で linter が違います。
 
-Go 1.23 には `tool` ディレクティブがありません。`//go:build tools` の空インポートで `go.mod` に載せました。CI では、その版を action へ渡します。Go 1.24 以降は `tool` ディレクティブで、この空インポート用のファイルは要らなくなります。
+Go 1.23 には `tool` ディレクティブがありません。`//go:build tools` の空インポートで `go.mod` に載せました。ローカルは版を付けない `go run` でそのモジュールを使い、CI は `install-mode: binary` で同じ版のリリースを入れます。Go 1.24 以降は `tool` ディレクティブで、この空インポート用のファイルは要らなくなります。
 
 <!-- more -->
 
@@ -10,12 +10,12 @@ Go 1.23 には `tool` ディレクティブがありません。`//go:build tool
 
 - [環境](#環境)
 - [この記事で伝えたいこと](#この記事で伝えたいこと)
-- [ずれていたところ](#ずれていたところ)
+- [ローカルと CI で版が揃っていない](#ローカルと-ci-で版が揃っていない)
 - [tools.go で go.mod に載せる](#toolsgo-で-gomod-に載せる)
-- [ローカルは版を付けずに go run する](#ローカルは版を付けずに-go-run-する)
-- [CI の goinstall は go.mod を見ない](#ci-の-goinstall-は-gomod-を見ない)
+- [版を付けない go run はメインモジュールを使う](#版を付けない-go-run-はメインモジュールを使う)
+- [CI は binary で同じ版のリリースを入れる](#ci-は-binary-で同じ版のリリースを入れる)
 - [Go 1.24 以降は tool ディレクティブ](#go-124-以降は-tool-ディレクティブ)
-- [公式はリリースバイナリを推奨している](#公式はリリースバイナリを推奨している)
+- [公式はコンパイル経由を保証しない](#公式はコンパイル経由を保証しない)
 - [おわりに](#おわりに)
 
 ## 環境
@@ -33,13 +33,15 @@ action の `@v6` は浮動タグです。ソースを見たタグは、本文の
 
 ## この記事で伝えたいこと
 
-版の置き場所は、`go.mod` の require です。ローカルの `go run` はそこを使い、CI には同じ版を渡します。
+版の置き場所は、`go.mod` の require です。ローカルの `go run` は版を付けず、メインモジュールが選んでいる版を使います。CI は `install-mode: binary` にして、`go list -m` で取った同じ版のリリースバイナリを入れます。
 
-`uses:` が指す action の ref と、実際に走る lint 本体の版は別です。ここでは本体の話だけです。
+`uses:` が指す action の ref と、実際に走る golangci-lint 本体の版は別です。ここでは本体の話だけです。
 
-## ずれていたところ
+## ローカルと CI で版が揃っていない
 
-Makefile には、インストール用の固定版と、実行用の `@latest` が両方ありました。
+揃っていなかったのは、次の 3 箇所です。
+
+Makefile のインストール用リストは `v1.59.1` です。実行用の define は `@latest` です。workflow はまた別で、`v1.60.3` を直書きしていました。
 
 ```makefile
 EXTERNAL_TOOLS := \
@@ -51,8 +53,6 @@ define golangci
 endef
 ```
 
-workflow はまた別の版です。
-
 ```yaml
 - uses: golangci/golangci-lint-action@v6
   with:
@@ -60,7 +60,7 @@ workflow はまた別の版です。
     version: v1.60.3
 ```
 
-`@latest` は、実行のたびに変わり得ます。直書きの版は、直した人しか更新しません。
+`@latest` は、実行のたびに変わり得ます。直書きの版は、直したファイルしか更新しません。手元の `make lint` と CI が別の golangci-lint を実行するので、片方だけで失敗することがあります。
 
 ## tools.go で go.mod に載せる
 
@@ -81,9 +81,9 @@ import (
 
 この変更のあと、`go.mod` は `go 1.23`、`toolchain go1.23.3`、golangci-lint は `v1.62.0` になりました。linter の推移的依存も、同じ `go.mod` に入ります。アプリケーションの依存と混ざります。
 
-## ローカルは版を付けずに go run する
+## 版を付けない go run はメインモジュールを使う
 
-[`go run` に `@v1.62.0` や `@latest` を付けると、カレントの `go.mod` を使わず、その版を別モジュールとして取ります](https://pkg.go.dev/cmd/go#hdr-Compile_and_run_Go_program)。付けなければ、今のモジュールの require が使われます。
+`go help run` では、パッケージ引数に版の接尾辞（`@latest` や `@v1.0.0`）があると、カレントディレクトリとその親にある `go.mod` を無視します。接尾辞が無いときは、`go.mod` があればモジュールモードになり、メインモジュールの文脈で実行します。
 
 ```makefile
 .PHONY: lint
@@ -91,25 +91,25 @@ lint: ## golangci を使って lint を走らせる。
 	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run -v
 ```
 
-空インポートが無いと、`go mod tidy` が require を消し、この `go run` はパッケージを解決できなくなります。`tools.go` はそのためのファイルです。
+`@` を付けていません。この `go run` が使う golangci-lint の版は、メインモジュールのビルドリストにある版、つまり `go.mod` で選ばれている版です。`@v1.62.0` や `@latest` を付けると、その `go.mod` は使われません。
 
-## CI の goinstall は go.mod を見ない
+説明の原文は [`go help run`](https://pkg.go.dev/cmd/go#hdr-Compile_and_run_Go_program) です。空インポートが無いと、`go mod tidy` が require を消し、この `go run` はパッケージを解決できなくなります。`tools.go` はそのためのファイルです。
 
-`tools.go` を入れたコミットで、action は `install-mode: goinstall` に変えました。このモードは次を実行します。
+## CI は binary で同じ版のリリースを入れる
+
+[action の README](https://github.com/golangci/golangci-lint-action#install-mode) では、`install-mode` は `binary`、`goinstall`、`none` です。既定は `binary` です。`goinstall` は非推奨で、[ソースからのインストール](https://golangci-lint.run/docs/welcome/install/local/#install-from-sources)を指しています。
+
+`binary` は、GitHub Releases のアーカイブをダウンロードします。[`v6.5.0` の `src/install.ts`](https://github.com/golangci/golangci-lint-action/blob/v6.5.0/src/install.ts) が、`version` からその URL を組み立てます。`goinstall` は次を実行します。
 
 ```bash
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@${version}
 ```
 
-[`v6.2.0` の `src/version.ts`](https://github.com/golangci/golangci-lint-action/blob/v6.2.0/src/version.ts)では、`goinstall` の分岐が `go.mod` を読む処理より前に return します。`version` が空なら `@latest` です。[`v6.5.0` の `src/install.ts`](https://github.com/golangci/golangci-lint-action/blob/v6.5.0/src/install.ts)が、その版を `@` の後ろに付けています。
+[`v6.2.0` の `src/version.ts`](https://github.com/golangci/golangci-lint-action/blob/v6.2.0/src/version.ts)では、`goinstall` の分岐が `go.mod` を読む処理より前に return します。`version` が空なら `@latest` です。[`go install` も、引数に版が付くとカレントの `go.mod` を無視します](https://pkg.go.dev/cmd/go#hdr-Compile_and_install_packages_and_dependencies)。
 
-[`go install` も、引数に版が付くとカレントの `go.mod` を無視します](https://pkg.go.dev/cmd/go#hdr-Compile_and_install_packages_and_dependencies)。
+2024-12-03 に、workflow から `version: v1.61.0` を外しました。コミットメッセージは「don't select lint version in backend-ci」です。`goinstall` のまま外すと、CI は `@latest` になります。ローカルの版なし `go run` は `go.mod` の版なので、ここでも揃いません。
 
-binary（既定）で `version` を空にすると、作業ディレクトリの `go.mod` から `github.com/golangci/golangci-lint` の直後の版を読みます。同じ v6.2.0 にその処理はあります。`goinstall` を選んでいる間は使われません。
-
-2024-12-03 に、workflow から `version: v1.61.0` を外しました。コミットメッセージは「don't select lint version in backend-ci」です。外したままだと、上の実装では CI が `@latest` になります。ローカルの `go run` は `go.mod` の版です。
-
-2025-01-02 に、コミットメッセージ「ci で使う golangci のバージョンを local のものと合わせる」で、CI の版をローカルと揃えるようにしました。渡す版は [`go list -m`](https://pkg.go.dev/cmd/go#hdr-List_packages_or_modules) で取ります。ジョブの `working-directory` は `./backend` で、このステップは `actions/setup-go` のあとです。
+CI 側は `binary` にします。渡す版は [`go list -m`](https://pkg.go.dev/cmd/go#hdr-List_packages_or_modules) で取ります。ジョブの `working-directory` は `./backend` で、このステップは `actions/setup-go` のあとです。
 
 ```yaml
 - name: Check golangci-lint version
@@ -122,13 +122,15 @@ binary（既定）で `version` を空にすると、作業ディレクトリの
   uses: golangci/golangci-lint-action@v6
   with:
     working-directory: ./backend
-    install-mode: goinstall
+    install-mode: binary
     version: ${{ steps.golang_ci_version.outputs.version }}
 ```
 
-`go list -m` は、今のモジュールが選んでいる版を出します。`-f '{{.Version}}'` なので、出るのは `v1.62.0` だけです。`// indirect` は付きません。引数はコマンドのパッケージパスではなく、モジュールパスです。そのモジュールが `go.mod` に無いと、このステップは失敗します。空の `version` のまま action が `@latest` になることはありません。
+`go list -m` は、今のモジュールが選んでいる版を出します。`-f '{{.Version}}'` なので、出るのは `v1.62.0` だけです。`// indirect` は付きません。引数はコマンドのパッケージパスではなく、モジュールパスです。そのモジュールが `go.mod` に無いと、このステップは失敗します。
 
-揃うのは golangci-lint のモジュール版です。ローカルの `go run`（版なし）は今のモジュールの依存解決を使い、CI の `go install @版` はその版のモジュールを単独でビルドします。依存の選択や、成果物のバイナリそのものは一致しません。
+`binary` で patch まで指定すると、action はその版をそのまま使います。`v1.62` のように minor だけだと、実行時に最新の patch を引きにいきます。`go list -m` の出力は patch まで含むので、リリースはその版に固定されます。
+
+揃うのは版番号です。CI はその版のリリースバイナリを実行し、ローカルの `go run` は同じモジュール版をその場でコンパイルします。実行ファイルの中身まで同じとは限りません。公式がインストール方法として保証しているのは、リリースバイナリの方です。
 
 ## Go 1.24 以降は tool ディレクティブ
 
@@ -152,15 +154,13 @@ go tool golangci-lint run
 
 手順は [依存関係のドキュメント](https://go.dev/doc/modules/managing-dependencies#tools)にあります。上のパッケージパスは、当時使っていた v1 です。v2 のモジュールパスは `github.com/golangci/golangci-lint/v2` で、コマンドのパッケージはその下の `cmd/golangci-lint` です。
 
-ここまでが楽になる部分です。`tools.go` と空インポートが消え、実行コマンドが `go tool` になります。
+ここまでが楽になる部分です。`tools.go` と空インポートが消え、実行コマンドが `go tool` になります。CI の `go list -m` と `install-mode: binary` はそのままです。
 
 `go list -m` は `tool` 行を読みません。require にあるモジュールの選択版を出すので、Go 1.24 でも同じコマンドで足ります。v2 にするときは、引数を `github.com/golangci/golangci-lint/v2` に変えます。行の 2 列目を版にする取り方は、`tool` 行の 2 列目がパッケージパスなので壊れます。
 
-action に任せるなら、binary で `version` を空にします。v6 はそのとき `go.mod` の require を見ます。正規表現は、モジュールパスの直後が空白と `v` で始まる版、という形です。`tool` 行の `/cmd/...` には一致しません。[v6.3.3](https://github.com/golangci/golangci-lint-action/commit/88d0254d16e98fa768899db08fed21af161ff2cc)で、`// indirect` まで巻き込まないよう `v\S+` に直っています。それより前の `v.+` は、行末のコメントまで版の一部にしてパースに失敗します。
+`version` を空にした `binary` は、v6 だと作業ディレクトリの `go.mod` を正規表現で読みます。`tool` 行の `/cmd/...` には一致しません。[v6.3.3](https://github.com/golangci/golangci-lint-action/commit/88d0254d16e98fa768899db08fed21af161ff2cc)より前の `v.+` は、行末の `// indirect` まで版の一部にしてパースに失敗します。`v\S+` に直ったあとでも、[action v9.3.0](https://github.com/golangci/golangci-lint-action/blob/v9.3.0/src/version.ts)が探すのは `github.com/golangci/golangci-lint/v2` だけです。v1 の require には一致しません。`version-file` が読むのは `.golangci-lint-version` と `.tool-versions` で、`binary` のときだけです。`tool` 行は読みません。だから、action の自動検出には任せません。
 
-[action v9.3.0 の `src/version.ts`](https://github.com/golangci/golangci-lint-action/blob/v9.3.0/src/version.ts)が探すのは `github.com/golangci/golangci-lint/v2` です。v1 の require には一致しません。`version-file` が読むのは `.golangci-lint-version` と `.tool-versions` で、`install-mode: binary` のときだけです。`tool` 行は読みません。`goinstall` は v9 でも、`version` 入力か `latest` です。
-
-## 公式はリリースバイナリを推奨している
+## 公式はコンパイル経由を保証しない
 
 2026-09-23 時点の [ローカルインストールのドキュメント](https://golangci-lint.run/docs/welcome/install/local/#install-from-sources)は、`go install`、tools.go、`tool` を保証しない、と書いています。理由は次です。
 
@@ -170,7 +170,7 @@ action に任せるなら、binary で `version` を空にします。v6 はそ�
 - main ブランチを入れられる
 - バイナリより遅い
 
-action の `install-mode: goinstall` も非推奨で、同じページを指しています。
+今回のローカルは、版を `go.mod` に固定したうえで `go run` しています。この実行そのものは、上の非推奨に入ります。CI を `binary` にしているのは、走らせるファイルをリリースバイナリにするためです。
 
 どうしても `go tool` を使うなら、専用の module ファイルに隔離し、依存を手動で上げないこと、とあります。今回の `tools.go` は本体の `go.mod` に入れているので、この隔離にはなっていません。
 
@@ -178,6 +178,6 @@ action の `install-mode: goinstall` も非推奨で、同じページを指し�
 
 ## おわりに
 
-Go 1.23 以前に版を 1 箇所へ寄せるなら、`tools.go` で require を残し、ローカルは版なしの `go run`、CI の `goinstall` には `go list -m` の版を渡す、が今回の形です。`goinstall` は `go.mod` を自分で読みません。
+課題は、ローカルと CI で golangci-lint の版が揃っていないことです。Go 1.23 以前は `tools.go` で require を残します。`go help run` のとおり、版を付けない `go run` はメインモジュールの版を使います。CI は `install-mode: binary` にして、`go list -m` の版を渡します。`goinstall` は非推奨で、`version` が空だと `@latest` になります。
 
-Go 1.24 以降は `tool` ディレクティブで `tools.go` を消せます。実行は `go tool` です。版の取り出しは同じ `go list -m` です。golangci-lint の作者は、今もリリースバイナリと版の固定を勧めています。
+Go 1.24 以降は `tool` ディレクティブで `tools.go` を消せます。実行は `go tool` です。版の取り出しと CI の `binary` は同じです。golangci-lint の作者は、今もリリースバイナリと版の固定を勧めています。
