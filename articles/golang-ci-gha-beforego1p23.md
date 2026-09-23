@@ -109,14 +109,14 @@ binary（既定）で `version` を空にすると、作業ディレクトリの
 
 2024-12-03 に、workflow から `version: v1.61.0` を外しました。コミットメッセージは「don't select lint version in backend-ci」です。外したままだと、上の実装では CI が `@latest` になります。ローカルの `go run` は `go.mod` の版です。
 
-2025-01-02 に、コミットメッセージ「ci で使う golangci のバージョンを local のものと合わせる」で、`go.mod` から取り出して渡すようにしました。ジョブの `working-directory` は `./backend` なので、読むのはそこにある `go.mod` です。
+2025-01-02 に、コミットメッセージ「ci で使う golangci のバージョンを local のものと合わせる」で、CI の版をローカルと揃えるようにしました。渡す版は [`go list -m`](https://pkg.go.dev/cmd/go#hdr-List_packages_or_modules) で取ります。ジョブの `working-directory` は `./backend` で、このステップは `actions/setup-go` のあとです。
 
 ```yaml
 - name: Check golangci-lint version
   id: golang_ci_version
   run: |
-    version=$(cat go.mod | grep 'github.com/golangci/golangci-lint' | awk '{print $2}')
-    echo "version=${version}" >> $GITHUB_OUTPUT
+    version=$(go list -m -f '{{.Version}}' github.com/golangci/golangci-lint)
+    echo "version=${version}" >> "$GITHUB_OUTPUT"
 
 - name: golangci-lint
   uses: golangci/golangci-lint-action@v6
@@ -126,7 +126,7 @@ binary（既定）で `version` を空にすると、作業ディレクトリの
     version: ${{ steps.golang_ci_version.outputs.version }}
 ```
 
-grep は、その文字列を含む行を全部拾います。require が 1 行なら、2 列目が `v1.62.0` です。行が 2 つあると、出力が改行を含んで `version` として壊れます。
+`go list -m` は、今のモジュールが選んでいる版を出します。`-f '{{.Version}}'` なので、出るのは `v1.62.0` だけです。`// indirect` は付きません。引数はコマンドのパッケージパスではなく、モジュールパスです。そのモジュールが `go.mod` に無いと、このステップは失敗します。空の `version` のまま action が `@latest` になることはありません。
 
 揃うのは golangci-lint のモジュール版です。ローカルの `go run`（版なし）は今のモジュールの依存解決を使い、CI の `go install @版` はその版のモジュールを単独でビルドします。依存の選択や、成果物のバイナリそのものは一致しません。
 
@@ -154,7 +154,7 @@ go tool golangci-lint run
 
 ここまでが楽になる部分です。`tools.go` と空インポートが消え、実行コマンドが `go tool` になります。
 
-CI の grep をそのまま使うと、`tool` 行にも一致します。`tool github.com/golangci/golangci-lint/cmd/golangci-lint` の 2 列目は版ではありません。require の、`v` で始まる列だけを取る必要があります。
+`go list -m` は `tool` 行を読みません。require にあるモジュールの選択版を出すので、Go 1.24 でも同じコマンドで足ります。v2 にするときは、引数を `github.com/golangci/golangci-lint/v2` に変えます。行の 2 列目を版にする取り方は、`tool` 行の 2 列目がパッケージパスなので壊れます。
 
 action に任せるなら、binary で `version` を空にします。v6 はそのとき `go.mod` の require を見ます。正規表現は、モジュールパスの直後が空白と `v` で始まる版、という形です。`tool` 行の `/cmd/...` には一致しません。[v6.3.3](https://github.com/golangci/golangci-lint-action/commit/88d0254d16e98fa768899db08fed21af161ff2cc)で、`// indirect` まで巻き込まないよう `v\S+` に直っています。それより前の `v.+` は、行末のコメントまで版の一部にしてパースに失敗します。
 
@@ -178,6 +178,6 @@ action の `install-mode: goinstall` も非推奨で、同じページを指し�
 
 ## おわりに
 
-Go 1.23 以前に版を 1 箇所へ寄せるなら、`tools.go` で require を残し、ローカルは版なしの `go run`、CI の `goinstall` にはその版を渡す、が今回の形です。`goinstall` は `go.mod` を自分で読まないので、grep が必要でした。
+Go 1.23 以前に版を 1 箇所へ寄せるなら、`tools.go` で require を残し、ローカルは版なしの `go run`、CI の `goinstall` には `go list -m` の版を渡す、が今回の形です。`goinstall` は `go.mod` を自分で読みません。
 
-Go 1.24 以降は `tool` ディレクティブで `tools.go` を消せます。実行は `go tool` です。CI の grep は `tool` 行と衝突するので、取り出し方は残ります。golangci-lint の作者は、今もリリースバイナリと版の固定を勧めています。
+Go 1.24 以降は `tool` ディレクティブで `tools.go` を消せます。実行は `go tool` です。版の取り出しは同じ `go list -m` です。golangci-lint の作者は、今もリリースバイナリと版の固定を勧めています。
