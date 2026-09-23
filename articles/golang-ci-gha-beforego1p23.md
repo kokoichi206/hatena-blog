@@ -1,19 +1,24 @@
 # Go 1.23 以前での golangci-lint のバージョン管理方法
 
-ローカルと CI で、golangci-lint の版が違っていました。Makefile は `v1.59.1` と `@latest`、GitHub Actions は `v1.60.3` です。
+ローカルと CI で golangci-lint のバージョンを統一する方法についてメモしておきます。
+
+[tool directive](https://go.dev/ref/mod#go-mod-file-tool) が導入される Go 1.24 より前のお話です。
+
+また、golangci v1.60 で動かしていた当時の内容になるため、v2 で動くかは保証できてません。
 
 ## 目次
 
 - [tools.go で go.mod に載せる](#toolsgo-で-gomod-に載せる)
-- [版を付けない go run はメインモジュールを使う](#版を付けない-go-run-はメインモジュールを使う)
+- [実行時にバージョン指定せず go run 実行](#実行時にバージョン指定せず-go-run-実行)
 - [CI は binary で同じ版のリリースを入れる](#ci-は-binary-で同じ版のリリースを入れる)
-- [Go 1.24 以降は tool ディレクティブ](#go-124-以降は-tool-ディレクティブ)
 
 <!-- more -->
 
 ## tools.go で go.mod に載せる
 
-コマンドラインツールの版を `go.mod` で持つファイルを足しました。ビルドタグで通常のビルドから外し、空インポートするやり方は [christina04.hatenablog.com の記事](https://christina04.hatenablog.com/entry/go-cmd-tools-versioning)を参照しています。
+cli ツールの依存とそのバージョンを `go.mod` で持つファイルを作成します。
+
+ビルドタグで通常のビルドから外し、空インポートするやり方は[こちらの記事](https://christina04.hatenablog.com/entry/go-cmd-tools-versioning)を参照しています。
 
 ```go
 //go:build tools
@@ -29,13 +34,30 @@ import (
 )
 ```
 
-[`go mod tidy` は `ignore` 以外のビルドタグを有効にして](https://go.dev/ref/mod#go-mod-tidy)パッケージを見ます。このインポートが無いと、require ごと消えます。
 
-linter の推移的な依存も同じ `go.mod` に入るので、アプリケーションの依存と混ざります。
+## 実行時にバージョン指定せず go run 実行
 
-## 版を付けない go run はメインモジュールを使う
+go help run によると、
 
-`go help run` では、`@latest` や `@v1.0.0` のように版を付けると、今いるディレクトリとその親の `go.mod` を無視します。版を付けなければ、そのモジュールの依存として走ります。
+``` sh
+$ go help run
+...
+If the package argument has a version suffix (like @latest or @v1.0.0),
+"go run" builds the program in module-aware mode, ignoring the go.mod file in
+the current directory or any parent directory, if there is one. This is useful
+for running programs without affecting the dependencies of the main module.
+
+If the package argument doesn't have a version suffix, "go run" may run in
+module-aware mode or GOPATH mode, depending on the GO111MODULE environment
+variable and the presence of a go.mod file. See 'go help modules' for details.
+If module-aware mode is enabled, "go run" runs in the context of the main
+module.
+...
+```
+
+`go run` 実行時、`@latest` や `@v1.0.0` のようなバージョン suffix を付けていない場合では、そのモジュールの依存として走ることが分かります。
+
+そこで以下のように Makefile に記載します。
 
 ```makefile
 .PHONY: lint
@@ -43,53 +65,25 @@ lint: ## golangci を使って lint を走らせる。
 	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run -v
 ```
 
-このターゲットには `@` を付けていません。golangci-lint の版は `go.mod` のものです。
+このターゲットには `@` を付けていまないため、golangci-lint のバージョンは `go.mod` のものになります。
 
 ## CI は binary で同じ版のリリースを入れる
 
-`install-mode` は `binary`、`goinstall`、`none` です。既定の `binary` はリリースのアーカイブを落とします。[README](https://github.com/golangci/golangci-lint-action#install-mode) は `goinstall` を非推奨にしています。`goinstall` は `version` が空だと `@latest` になり、`go.mod` を見ません。ローカルの `go run` とずれます。
+golangci-lint-action は golangci-lint のバージョンを指定する [key があります](https://github.com/golangci/golangci-lint-action/tree/v6.5.2#version)。  
+（当時使っていた v6.5 のタグで確認しています。）
 
-CI では `binary` にして、[`go list -m`](https://pkg.go.dev/cmd/go#hdr-List_packages_or_modules) の版を渡します。`go list` は Go のセットアップのあとです。
+そこで、以下のように [`go list -m`](https://pkg.go.dev/cmd/go#hdr-List_packages_or_modules) で取れる go mod からのバージョンを渡してあげることにしました。
 
 ```yaml
-- name: Check golangci-lint version
+- name: Extract golangci-lint version
   id: golang_ci_version
   run: |
     version=$(go list -m -f '{{.Version}}' github.com/golangci/golangci-lint)
     echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-- name: golangci-lint
+- name: Run golangci-lint
   uses: golangci/golangci-lint-action@v6
   with:
-    working-directory: ./backend
     install-mode: binary
     version: ${{ steps.golang_ci_version.outputs.version }}
 ```
-
-`{{.Version}}` は選択された版だけです。`v1.62.0` のようになり、`// indirect` は付きません。引数はモジュールパスです。
-
-`v1.62.0` のように patch まで渡すと、そのリリースを使います。`v1.62` だけだと、実行時に新しい patch を取りにいきます。
-
-CI が実行するのはリリースバイナリです。ローカルの `go run` は同じ版をコンパイルします。版は揃っても、バイナリの中身まで同じとは限りません。
-
-## Go 1.24 以降は tool ディレクティブ
-
-[Go 1.24](https://go.dev/doc/go1.24#tools) から `tool` ディレクティブがあります。`tools.go` は要りません。
-
-```bash
-go get -tool github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.0
-```
-
-`go.mod` にはパッケージパスだけの行が足されます。版は require に残ります。
-
-```text
-tool github.com/golangci/golangci-lint/cmd/golangci-lint
-```
-
-実行は `go tool` です。名前がぶつかるときはフルパスを渡します。手順は [依存関係のドキュメント](https://go.dev/doc/modules/managing-dependencies#tools)にあります。
-
-```bash
-go tool golangci-lint run
-```
-
-v2 のモジュールパスは `github.com/golangci/golangci-lint/v2` です。`go list -m` は `tool` 行を見ないので、CI へ渡す版の取り方は 1.23 のときと同じです。
